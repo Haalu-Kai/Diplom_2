@@ -2,7 +2,7 @@ import pytest
 import requests
 import allure
 
-from config import ORDERS_URL
+from config import ORDERS_URL, MSG_NO_INGREDIENTS
 
 
 @allure.epic("Stellar Burgers API")
@@ -76,7 +76,7 @@ class TestCreateOrder:
         with allure.step("Проверяем success=false и сообщение об ошибке"):
             body = response.json()
             assert body["success"] is False
-            assert body["message"] == "Ingredient ids must be provided"
+            assert body["message"] == MSG_NO_INGREDIENTS
 
     @allure.story("Заказ с неверным хешем ингредиентов")
     @allure.title("Создание заказа с невалидным хешем ингредиента возвращает 500")

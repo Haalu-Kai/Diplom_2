@@ -2,8 +2,7 @@ import pytest
 import requests
 import allure
 
-from config import LOGIN_URL
-from helpers import generate_user_data
+from config import LOGIN_URL, MSG_WRONG_CREDENTIALS
 
 
 @allure.epic("Stellar Burgers API")
@@ -36,14 +35,21 @@ class TestLoginUser:
             assert body["user"]["email"] == new_user["email"]
 
     @allure.story("Неуспешный логин")
-    @allure.title("Вход с неверным паролем возвращает 401")
-    def test_login_with_wrong_password_returns_401(self, new_user):
+    @allure.title("Вход с неверным логином и/или паролем возвращает 401")
+    @pytest.mark.parametrize("email_override, password_override", [
+        ("totally_wrong@example.com", None),           
+        (None, "totally_wrong_password_12345"),          
+        ("completely_wrong@example.com", "wrong_pass"), 
+    ])
+    def test_login_with_wrong_credentials_returns_401(
+        self, new_user, email_override, password_override
+    ):
         credentials = {
-            "email": new_user["email"],
-            "password": "totally_wrong_password_12345",
+            "email": email_override if email_override else new_user["email"],
+            "password": password_override if password_override else new_user["password"],
         }
 
-        with allure.step("Отправляем POST /api/auth/login с неверным паролем"):
+        with allure.step(f"Отправляем POST /api/auth/login: email={credentials['email']}"):
             response = requests.post(LOGIN_URL, json=credentials)
 
         with allure.step("Проверяем статус-код 401"):
@@ -52,42 +58,4 @@ class TestLoginUser:
         with allure.step("Проверяем success=false и сообщение об ошибке"):
             body = response.json()
             assert body["success"] is False
-            assert body["message"] == "email or password are incorrect"
-
-    @allure.story("Неуспешный логин")
-    @allure.title("Вход с неверным email возвращает 401")
-    def test_login_with_wrong_email_returns_401(self, new_user):
-        credentials = {
-            "email": "nonexistent_user_xyz@example.com",
-            "password": new_user["password"],
-        }
-
-        with allure.step("Отправляем POST /api/auth/login с несуществующим email"):
-            response = requests.post(LOGIN_URL, json=credentials)
-
-        with allure.step("Проверяем статус-код 401"):
-            assert response.status_code == 401
-
-        with allure.step("Проверяем success=false и сообщение об ошибке"):
-            body = response.json()
-            assert body["success"] is False
-            assert body["message"] == "email or password are incorrect"
-
-    @allure.story("Неуспешный логин")
-    @allure.title("Вход с неверным логином и паролем возвращает 401")
-    def test_login_with_wrong_credentials_returns_401(self):
-        credentials = {
-            "email": "completely_wrong@example.com",
-            "password": "completely_wrong_password",
-        }
-
-        with allure.step("Отправляем POST /api/auth/login с полностью неверными данными"):
-            response = requests.post(LOGIN_URL, json=credentials)
-
-        with allure.step("Проверяем статус-код 401"):
-            assert response.status_code == 401
-
-        with allure.step("Проверяем success=false"):
-            body = response.json()
-            assert body["success"] is False
-            assert body["message"] == "email or password are incorrect"
+            assert body["message"] == MSG_WRONG_CREDENTIALS
